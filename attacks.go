@@ -1,0 +1,65 @@
+package main
+
+type Attack struct {
+	Name         string
+	Power        int
+	Accuracy     int
+	LevelToLearn int
+	Type         PokemonType
+}
+
+var attacks = []Attack{
+	{"Tackle", 40, 100, 1, TypeNormal},
+	{"Growl", 0, 100, 1, TypeNormal},
+	{"Thunderbolt", 90, 100, 26, TypeElectric},
+	{"Flamethrower", 90, 100, 39, TypeFire},
+	{"Water Gun", 40, 100, 1, TypeWater},
+	{"Vine Whip", 45, 100, 13, TypeGrass},
+	{"Psybeam", 65, 100, 15, TypePsychic},
+	{"Ice Beam", 90, 100, 37, TypeIce},
+	{"Earthquake", 100, 100, 50, TypeGround},
+	{"Rock Slide", 75, 90, 25, TypeRock},
+	{"Confusion", 50, 100, 15, TypePsychic},
+	{"Bite", 60, 100, 15, TypeDark},
+	{"Double Kick", 30, 100, 12, TypeFighting},
+	{"Quick Attack", 40, 100, 1, TypeNormal},
+	{"Hyper Beam", 150, 90, 50, TypeNormal},
+	{"Surf", 90, 100, 30, TypeWater},
+	{"Solar Beam", 120, 100, 43, TypeGrass},
+	{"Ember", 40, 100, 1, TypeFire},
+	{"Smokescreen", 0, 100, 1, TypeNormal},
+	{"Fire Spin", 35, 85, 15, TypeFire},
+	{"Barrage", 15, 85, 1, TypeNormal},
+	{"Mega Punch", 80, 85, 1, TypeNormal},
+	{"Mega Kick", 120, 75, 1, TypeNormal},
+	{"Seismic Toss", 0, 100, 1, TypeFighting},
+	{"Strength", 80, 100, 1, TypeNormal},
+	{"Submission", 80, 80, 1, TypeFighting},
+	{"Counter", 0, 100, 1, TypeFighting},
+	{"Harden", 0, 100, 1, TypeNormal},
+	{"Absorb", 20, 100, 1, TypeGrass},
+	{"Mega Drain", 40, 100, 24, TypeGrass},
+	{"Leech Seed", 0, 90, 7, TypeGrass},
+	{"Growth", 0, 100, 15, TypeNormal},
+	{"Petal Dance", 120, 100, 31, TypeGrass},
+	{"Razor Leaf", 55, 95, 21, TypeGrass},
+	{"Poison Sting", 15, 100, 1, TypePoison},
+	{"Acid", 40, 100, 1, TypePoison},
+	{"Screech", 0, 85, 1, TypeNormal},
+	{"Fury Swipes", 18, 80, 1, TypeNormal},
+	{"Dynamic Punch", 100, 50, 1, TypeFighting},
+	{"Mimic", 0, 100, 1, TypeNormal},
+	{"Night Shade", 0, 100, 1, TypeGhost},
+	{"Confuse Ray", 0, 100, 1, TypeGhost},
+	{"Dream Eater", 100, 100, 1, TypePsychic},
+	{"Rage", 20, 100, 1, TypeNormal},
+	{"Teleport", 0, 100, 1, TypePsychic},
+	{"Self-Destruct", 200, 100, 1, TypeNormal},
+	{"Explosion", 250, 100, 1, TypeNormal},
+	{"Lick", 30, 100, 1, TypeGhost},
+	{"Hydro Pump", 110, 80, 43, TypeWater},
+	{"Whirlpool", 35, 85, 15, TypeWater},
+	{"Hydro Cannon", 150, 90, 50, TypeWater},
+	{"Bug Bite", 60, 100, 1, TypeBug},
+	{"String Shot", 0, 100, 1, TypeBug},
+}
