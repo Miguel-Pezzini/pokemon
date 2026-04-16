@@ -183,17 +183,28 @@ func showEnemyDefeatedScreen(character *Character, enemy Pokemon, messages []str
 	xpGained := battleXPGain(enemy)
 	currentPokemon := &character.Pokemons[0]
 	previousXP := currentPokemon.XP
-	currentPokemon.XP += xpGained
+	previousLevel := currentPokemon.Level
+	levelsGained := applyPokemonXPGain(currentPokemon, xpGained)
 
 	resultMessages := battleMessages(messages,
 		colorGreen+ansiBold+enemy.Name+" fainted!"+ansiReset,
 		fmt.Sprintf("%sXP gained:%s %s%d XP%s",
 			colorGray, ansiReset, colorYellow, xpGained, ansiReset),
+		fmt.Sprintf("%s%s%s %sLv:%s %s%d -> %d%s",
+			ansiBold+colorWhite, currentPokemon.Name, ansiReset,
+			colorGray, ansiReset,
+			colorYellow, previousLevel, currentPokemon.Level, ansiReset),
 		fmt.Sprintf("%s%s%s %sXP:%s %s%d -> %d/%d%s",
 			ansiBold+colorWhite, currentPokemon.Name, ansiReset,
 			colorGray, ansiReset,
 			colorYellow, previousXP, currentPokemon.XP, currentPokemon.XPToUp, ansiReset),
 	)
+
+	if levelsGained > 0 {
+		resultMessages = append(resultMessages,
+			fmt.Sprintf("%s%s leveled up!%s", colorYellow+ansiBold, currentPokemon.Name, ansiReset),
+		)
+	}
 
 	renderBattleScreen(*currentPokemon, enemy, resultMessages)
 	pressEnterToReturnToMap()

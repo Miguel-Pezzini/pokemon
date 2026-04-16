@@ -1678,3 +1678,30 @@ func createPokemon(id, level int) Pokemon {
 	p.Attacks = pokemonAttacks(id, level)
 	return p
 }
+
+func applyPokemonXPGain(p *Pokemon, xpGained int) int {
+	if xpGained <= 0 {
+		return 0
+	}
+
+	p.XP += xpGained
+	levelsGained := 0
+
+	for p.XP >= p.XPToUp {
+		oldHP := p.HP
+		p.XP -= p.XPToUp
+		p.Level++
+		p.XPToUp = pokemonXPTOUP(p.Level)
+		p.HP = pokemonHP(p.ID, p.Level)
+		p.ActualHP += p.HP - oldHP
+		if p.ActualHP > p.HP {
+			p.ActualHP = p.HP
+		}
+		p.Def = pokemonDEF(p.ID, p.Level)
+		p.Speed = pokemonSPEED(p.ID, p.Level)
+		p.Attacks = pokemonAttacks(p.ID, p.Level)
+		levelsGained++
+	}
+
+	return levelsGained
+}
