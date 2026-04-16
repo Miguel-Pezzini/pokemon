@@ -12,19 +12,17 @@ func setCursorPosition(x, y int) {
 
 func clearPosition(x, y int) {
 	setCursorPosition(x, y)
-	fmt.Print(" ")
+	fmt.Print(tileFloor)
 }
 
 func putBush(x, y int) {
 	setCursorPosition(x, y)
-	fmt.Print("\033[0;42m")
-	fmt.Print(" ")
-	fmt.Print("\033[0m")
+	fmt.Print(tileBush)
 }
 
 func drawPosition(x, y int) {
 	setCursorPosition(x, y)
-	fmt.Print("@")
+	fmt.Print(tilePlayer)
 }
 
 func clearAndDrawn(mat [][]int, x, y *int, newX, newY int) {

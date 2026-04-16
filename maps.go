@@ -84,6 +84,17 @@ func labOne(mat [][]int, x, y int) {
 	fillMatrix(mat, mapData, x, y)
 }
 
+const (
+	tileFloor    = "\033[48;5;22m \033[0m"
+	tileWall     = "\033[48;5;58m \033[0m"
+	tileDoor     = "\033[48;5;214m \033[0m"
+	tileBuilding = "\033[48;5;131m \033[0m"
+	tileLabDoor  = "\033[48;5;220m \033[0m"
+	tileNPC      = "\033[48;5;231m\033[38;5;16m&\033[0m"
+	tileBush     = "\033[48;5;28m \033[0m"
+	tilePlayer   = "\033[48;5;22m\033[38;5;231m\033[1m@\033[0m"
+)
+
 func seeMap(mat [][]int) {
 	numRows := len(mat)
 	numCols := len(mat[0])
@@ -92,34 +103,21 @@ func seeMap(mat [][]int) {
 		for j := 0; j < numCols; j++ {
 			switch mat[i][j] {
 			case 0:
-				fmt.Print(" ")
+				fmt.Print(tileFloor)
 			case 1:
-				fmt.Print("\033[0;41m")
-				fmt.Print(" ")
-				fmt.Print("\033[0m")
+				fmt.Print(tileWall)
 			case 2:
-				fmt.Print("@")
-				fmt.Print("\033[0m")
+				fmt.Print(tilePlayer)
 			case 3:
-				fmt.Print("\033[0;43m")
-				fmt.Print(" ")
-				fmt.Print("\033[0m")
+				fmt.Print(tileDoor)
 			case 4:
-				fmt.Print("\033[0;44m")
-				fmt.Print(" ")
-				fmt.Print("\033[0m")
+				fmt.Print(tileBuilding)
 			case 5:
-				fmt.Print("\033[0;43m")
-				fmt.Print(" ")
-				fmt.Print("\033[0m")
+				fmt.Print(tileLabDoor)
 			case 6:
-				fmt.Print("\033[0;47m")
-				fmt.Print(" ")
-				fmt.Print("\033[0m")
+				fmt.Print(tileNPC)
 			case 7:
-				fmt.Print("\033[0;42m")
-				fmt.Print(" ")
-				fmt.Print("\033[0m")
+				fmt.Print(tileBush)
 			}
 		}
 		fmt.Println()

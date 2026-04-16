@@ -5,6 +5,13 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
+	"time"
+)
+
+const (
+	battleAnimationStartDelay = 260 * time.Millisecond
+	battleAnimationFrameDelay = 140 * time.Millisecond
 )
 
 func weakAgainst(t PokemonType) []PokemonType {
@@ -81,18 +88,151 @@ func strongAgainst(t PokemonType) []PokemonType {
 	}
 }
 
+func renderBattleScreen(player, enemy Pokemon, messages []string) {
+	cls()
+	fmt.Println()
+
+	enemyLines := []string{
+		fmt.Sprintf("%s%-14s%s %s  %sLv.%s%d%s",
+			ansiBold+colorWhite, enemy.Name, ansiReset,
+			typeBadge(enemy.Type),
+			colorGray, colorYellow, enemy.Level, ansiReset),
+		hpBar(enemy.ActualHP, enemy.HP, 22, "ENEMY"),
+	}
+	drawTitledBox("WILD POKEMON", enemyLines, 60, colorRed, colorOrange)
+
+	fmt.Println()
+
+	playerLines := []string{
+		fmt.Sprintf("%s%-14s%s %s  %sLv.%s%d%s",
+			ansiBold+colorWhite, player.Name, ansiReset,
+			typeBadge(player.Type),
+			colorGray, colorYellow, player.Level, ansiReset),
+		hpBar(player.ActualHP, player.HP, 22, "YOURS"),
+	}
+	drawTitledBox("YOUR POKEMON", playerLines, 60, colorGreen, colorCyan)
+
+	if len(messages) > 0 {
+		fmt.Println()
+		drawTitledBox("BATTLE LOG", messages, 60, colorBlue, colorCyan)
+	}
+}
+
+func hpAnimationStep(diff int) int {
+	switch {
+	case diff <= 18:
+		return 1
+	case diff <= 40:
+		return 2
+	case diff <= 75:
+		return 3
+	default:
+		return diff/30 + 1
+	}
+}
+
+func animateBattleHPChange(beforePlayer, afterPlayer, beforeEnemy, afterEnemy Pokemon, messages []string) {
+	playerFrame := beforePlayer
+	enemyFrame := beforeEnemy
+
+	playerDiff := beforePlayer.ActualHP - afterPlayer.ActualHP
+	enemyDiff := beforeEnemy.ActualHP - afterEnemy.ActualHP
+
+	if playerDiff <= 0 && enemyDiff <= 0 {
+		renderBattleScreen(afterPlayer, afterEnemy, messages)
+		return
+	}
+
+	playerStep := hpAnimationStep(playerDiff)
+	enemyStep := hpAnimationStep(enemyDiff)
+
+	renderBattleScreen(playerFrame, enemyFrame, messages)
+	time.Sleep(battleAnimationStartDelay)
+
+	for playerFrame.ActualHP > afterPlayer.ActualHP || enemyFrame.ActualHP > afterEnemy.ActualHP {
+		if playerFrame.ActualHP > afterPlayer.ActualHP {
+			playerFrame.ActualHP -= playerStep
+			if playerFrame.ActualHP < afterPlayer.ActualHP {
+				playerFrame.ActualHP = afterPlayer.ActualHP
+			}
+		}
+
+		if enemyFrame.ActualHP > afterEnemy.ActualHP {
+			enemyFrame.ActualHP -= enemyStep
+			if enemyFrame.ActualHP < afterEnemy.ActualHP {
+				enemyFrame.ActualHP = afterEnemy.ActualHP
+			}
+		}
+
+		renderBattleScreen(playerFrame, enemyFrame, messages)
+		time.Sleep(battleAnimationFrameDelay)
+	}
+}
+
+func battleMessages(messages []string, extra ...string) []string {
+	out := append([]string{}, messages...)
+	out = append(out, extra...)
+	return out
+}
+
+func battleXPGain(enemy Pokemon) int {
+	return enemy.Level * 25
+}
+
+func showEnemyDefeatedScreen(character *Character, enemy Pokemon, messages []string) {
+	xpGained := battleXPGain(enemy)
+	currentPokemon := &character.Pokemons[0]
+	previousXP := currentPokemon.XP
+	currentPokemon.XP += xpGained
+
+	resultMessages := battleMessages(messages,
+		colorGreen+ansiBold+enemy.Name+" fainted!"+ansiReset,
+		fmt.Sprintf("%sXP gained:%s %s%d XP%s",
+			colorGray, ansiReset, colorYellow, xpGained, ansiReset),
+		fmt.Sprintf("%s%s%s %sXP:%s %s%d -> %d/%d%s",
+			ansiBold+colorWhite, currentPokemon.Name, ansiReset,
+			colorGray, ansiReset,
+			colorYellow, previousXP, currentPokemon.XP, currentPokemon.XPToUp, ansiReset),
+	)
+
+	renderBattleScreen(*currentPokemon, enemy, resultMessages)
+	pressEnterToReturnToMap()
+}
+
+func showPlayerFaintedScreen(character *Character, enemy Pokemon, messages []string) bool {
+	resultMessages := battleMessages(messages, colorRed+ansiBold+character.Pokemons[0].Name+" fainted!"+ansiReset)
+
+	if !checkPokemonDead(*character) {
+		resultMessages = append(resultMessages,
+			colorRed+ansiBold+"You were defeated!"+ansiReset,
+			colorGray+"Your team needs to recover before battling again."+ansiReset,
+		)
+		renderBattleScreen(character.Pokemons[0], enemy, resultMessages)
+		pressEnterToReturnToMap()
+		return false
+	}
+
+	renderBattleScreen(character.Pokemons[0], enemy, resultMessages)
+	pressEnterToContinue()
+	changePokemon(character)
+	return true
+}
+
 func menuCombat(p Pokemon) int {
 	opt := 0
 	for opt < 1 || opt > 4 {
-		fmt.Println("What do you want to do: ")
-		fmt.Println("1. Fight")
-		fmt.Println("2. Bag")
-		fmt.Println("3. Run")
-		fmt.Println("4. Pokemon")
-		fmt.Scan(&opt)
-
+		fmt.Println()
+		lines := []string{
+			colorRed + "  1 " + colorGray + "| " + colorWhite + "FIGHT  " + colorDark + "- attack the enemy",
+			colorYellow + "  2 " + colorGray + "| " + colorWhite + "BAG    " + colorDark + "- use an item",
+			colorBlue + "  3 " + colorGray + "| " + colorWhite + "RUN    " + colorDark + "- flee the battle",
+			colorGreen + "  4 " + colorGray + "| " + colorWhite + "POKEMON" + colorDark + " - switch out",
+		}
+		drawTitledBox("ACTIONS", lines, 60, colorGold, colorYellow)
+		fmt.Print(colorCyan + "  > " + ansiReset + "What will you do? " + colorGray + "(1-4): " + ansiReset)
+		scanIntInput(&opt)
 		if opt < 1 || opt > 4 {
-			fmt.Println("Invalid option. Please choose again.")
+			fmt.Println(colorRed + "  ! Invalid option. Try again." + ansiReset)
 		}
 	}
 	return opt
@@ -112,11 +252,28 @@ func checkPokemonDead(character Character) bool {
 	return true
 }
 
-func attackPokemon(character Character, p *Pokemon, attackOpt int) {
+func formatDamage(attacker string, dmg int, modifier float64) string {
+	switch {
+	case modifier == 1.5:
+		return fmt.Sprintf("%s%s%s %sused an %seffective%s attack - %s-%d HP%s",
+			ansiBold+colorGreen, attacker, ansiReset,
+			colorGray, colorYellow, colorGray,
+			colorRed, dmg, ansiReset)
+	case modifier == 0.5:
+		return fmt.Sprintf("%s%s%s %sattack %swasn't very effective%s - %s-%d HP%s",
+			ansiBold+colorGray, attacker, ansiReset,
+			colorGray, colorGray, colorGray,
+			colorOrange, dmg, ansiReset)
+	default:
+		return fmt.Sprintf("%s%s%s %sattacked for %s-%d HP%s",
+			ansiBold+colorWhite, attacker, ansiReset,
+			colorGray, colorRed, dmg, ansiReset)
+	}
+}
+
+func attackPokemon(character Character, p *Pokemon, attackOpt int) string {
 	typeModifier := 1.0
-
 	attackType := character.Pokemons[0].Attacks[attackOpt].Type
-
 	strongTypeAgainst := strongAgainst(attackType)
 	weakTypeAgainst := weakAgainst(attackType)
 
@@ -125,7 +282,6 @@ func attackPokemon(character Character, p *Pokemon, attackOpt int) {
 			typeModifier = 1.5
 		}
 	}
-
 	for i := 0; i < len(weakTypeAgainst); i++ {
 		if p.Type == weakTypeAgainst[i] {
 			typeModifier = 0.5
@@ -137,23 +293,12 @@ func attackPokemon(character Character, p *Pokemon, attackOpt int) {
 	if p.ActualHP <= 0 {
 		p.ActualHP = 0
 	}
-
-	if typeModifier == 1.5 {
-		fmt.Printf("%s attack is effective doing %d of damage\n", character.Pokemons[0].Name, dano)
-	}
-	if typeModifier == 0.5 {
-		fmt.Printf("%s attack is not effective doing %d of damage\n", character.Pokemons[0].Name, dano)
-	}
-	if typeModifier == 1.0 {
-		fmt.Printf("%s attack did %d of damage\n", character.Pokemons[0].Name, dano)
-	}
+	return formatDamage(character.Pokemons[0].Name, dano, typeModifier)
 }
 
-func pokemonAttackYou(character *Character, p Pokemon, randomAttack int) {
+func pokemonAttackYou(character *Character, p Pokemon, randomAttack int) string {
 	typeModifier := 1.0
-
 	attackType := p.Attacks[randomAttack].Type
-
 	strongTypeAgainst := strongAgainst(attackType)
 	weakTypeAgainst := weakAgainst(attackType)
 
@@ -162,7 +307,6 @@ func pokemonAttackYou(character *Character, p Pokemon, randomAttack int) {
 			typeModifier = 1.5
 		}
 	}
-
 	for i := 0; i < len(weakTypeAgainst); i++ {
 		if character.Pokemons[0].Type == weakTypeAgainst[i] {
 			typeModifier = 0.5
@@ -171,82 +315,125 @@ func pokemonAttackYou(character *Character, p Pokemon, randomAttack int) {
 
 	dano := (((2*character.Pokemons[0].Level/5+2)*p.Attacks[randomAttack].Power*int(typeModifier*50))/character.Pokemons[0].Def)/50 + 2
 	character.Pokemons[0].ActualHP -= dano
-
 	if character.Pokemons[0].ActualHP <= 0 {
 		character.Pokemons[0].ActualHP = 0
 	}
-
-	if typeModifier == 1.5 {
-		fmt.Printf("%s attack is effective doing %d of damage\n", p.Name, dano)
-	}
-	if typeModifier == 0.5 {
-		fmt.Printf("%s attack is not effective doing %d of damage\n", p.Name, dano)
-	} else {
-		fmt.Printf("%s attack did %d of damage\n", p.Name, dano)
-	}
+	return formatDamage(p.Name, dano, typeModifier)
 }
 
 func changePokemon(character *Character) {
 	size := len(character.Pokemons)
 	indexPoke := 0
-	fmt.Println("The Pokémon fainted! You must choose another Pokémon!: ")
+	fmt.Println()
+	var lines []string
+	lines = append(lines, colorRed+"  Your Pokemon fainted!"+ansiReset)
+	lines = append(lines, "")
 	for i := 0; i < size; i++ {
 		if character.Pokemons[i].ActualHP > 0 {
-			fmt.Printf("PRESS %d TO SELECT THE POKEMON %s", i, character.Pokemons[i].Name)
+			lines = append(lines, fmt.Sprintf("%s  %d %s| %s%-12s%s  %s  %sLv.%s%d%s",
+				colorYellow, i, colorGray,
+				colorWhite+ansiBold, character.Pokemons[i].Name, ansiReset,
+				typeBadge(character.Pokemons[i].Type),
+				colorGray, colorYellow, character.Pokemons[i].Level, ansiReset))
 		}
 	}
-	fmt.Scan(&indexPoke)
+	drawTitledBox("CHOOSE YOUR NEXT POKEMON", lines, 60, colorRed, colorOrange)
+	fmt.Print(colorCyan + "  > " + ansiReset + "Choose: " + ansiReset)
+	scanIntInput(&indexPoke)
 	temp := character.Pokemons[0]
 	character.Pokemons[0] = character.Pokemons[indexPoke]
 	character.Pokemons[indexPoke] = temp
 }
 
-func pressEnterToContinue() {
-	fmt.Print("Press Enter to continue...")
+func scanIntInput(value *int) {
+	fmt.Scan(value)
 	reader := bufio.NewReader(os.Stdin)
-	reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+}
+
+func pressEnterToContinue() {
+	fmt.Println()
+	fmt.Print(colorGray + "  Press Enter to continue..." + ansiReset)
+	reader := bufio.NewReader(os.Stdin)
+	_, _ = reader.ReadString('\n')
+}
+
+func pressEnterToReturnToMap() {
+	fmt.Println()
+	fmt.Print(colorGray + "  Press Enter to return to the map..." + ansiReset)
+	reader := bufio.NewReader(os.Stdin)
+	_, _ = reader.ReadString('\n')
+}
+
+func chooseAttack(character *Character) int {
+	attackOpt := 0
+	for {
+		var lines []string
+		for i, atk := range character.Pokemons[0].Attacks {
+			pp := fmt.Sprintf("%sPWR %s%-3d%s", colorGray, colorYellow, atk.Power, ansiReset)
+			lines = append(lines, fmt.Sprintf("%s  %d %s| %s%-14s%s  %s  %s",
+				colorGold, i+1, colorGray,
+				colorWhite+ansiBold, atk.Name, ansiReset,
+				typeBadge(atk.Type),
+				pp))
+		}
+		drawTitledBox(strings.ToUpper(character.Pokemons[0].Name)+"'S ATTACKS", lines, 60, colorMagenta, colorPink)
+		fmt.Print(colorCyan + "  > " + ansiReset + "Pick an attack: " + ansiReset)
+		scanIntInput(&attackOpt)
+		if attackOpt >= 1 && attackOpt <= len(character.Pokemons[0].Attacks) {
+			return attackOpt - 1
+		}
+		fmt.Println(colorRed + "  ! Invalid attack." + ansiReset)
+	}
 }
 
 func fight(p *Pokemon, character *Character) bool {
-	attackOpt := 0
 	attacksWildLenght := len(p.Attacks)
 	randomAttack := rand.Intn(attacksWildLenght)
 
-	fmt.Print("YOUR ATTACKS: \n")
-	for i := 0; i < len(character.Pokemons[0].Attacks); i++ {
-		fmt.Printf("%d. %s", i+1, character.Pokemons[0].Attacks[i].Name)
-	}
-	fmt.Scan(&attackOpt)
-	attackOpt--
+	attackOpt := chooseAttack(character)
 
+	var msgs []string
 	if character.Pokemons[0].Speed > p.Speed {
-		attackPokemon(*character, p, attackOpt)
+		playerBefore := character.Pokemons[0]
+		enemyBefore := *p
+		msgs = append(msgs, attackPokemon(*character, p, attackOpt))
+		animateBattleHPChange(playerBefore, character.Pokemons[0], enemyBefore, *p, msgs)
 		if p.ActualHP <= 0 {
+			showEnemyDefeatedScreen(character, *p, msgs)
 			return false
 		}
-		pokemonAttackYou(character, *p, randomAttack)
+
+		playerBefore = character.Pokemons[0]
+		enemyBefore = *p
+		msgs = append(msgs, pokemonAttackYou(character, *p, randomAttack))
+		animateBattleHPChange(playerBefore, character.Pokemons[0], enemyBefore, *p, msgs)
 		if character.Pokemons[0].ActualHP <= 0 {
-			if !checkPokemonDead(*character) {
-				return false
-			}
-			changePokemon(character)
+			return showPlayerFaintedScreen(character, *p, msgs)
 		}
+
 		pressEnterToContinue()
+		return true
 	}
-	if character.Pokemons[0].Speed < p.Speed {
-		pokemonAttackYou(character, *p, randomAttack)
-		if character.Pokemons[0].ActualHP <= 0 {
-			if !checkPokemonDead(*character) {
-				return false
-			}
-			changePokemon(character)
-		}
-		attackPokemon(*character, p, attackOpt)
-		pressEnterToContinue()
-		if p.ActualHP <= 0 {
-			return false
-		}
+
+	playerBefore := character.Pokemons[0]
+	enemyBefore := *p
+	msgs = append(msgs, pokemonAttackYou(character, *p, randomAttack))
+	animateBattleHPChange(playerBefore, character.Pokemons[0], enemyBefore, *p, msgs)
+	if character.Pokemons[0].ActualHP <= 0 {
+		return showPlayerFaintedScreen(character, *p, msgs)
 	}
+
+	playerBefore = character.Pokemons[0]
+	enemyBefore = *p
+	msgs = append(msgs, attackPokemon(*character, p, attackOpt))
+	animateBattleHPChange(playerBefore, character.Pokemons[0], enemyBefore, *p, msgs)
+	if p.ActualHP <= 0 {
+		showEnemyDefeatedScreen(character, *p, msgs)
+		return false
+	}
+
+	pressEnterToContinue()
 	return true
 }
 
@@ -255,11 +442,18 @@ func seeBag(p Pokemon, character Character) bool {
 }
 
 func run(p Pokemon, character Character) bool {
+	fmt.Println()
 	if p.Level > character.Pokemons[0].Level {
-		fmt.Printf("%s blocked your escape\n", p.Name)
+		drawBox([]string{
+			colorRed + ansiBold + "  ! " + p.Name + " blocked your escape!" + ansiReset,
+		}, 50, colorRed)
+		pressEnterToContinue()
 		return true
 	}
-	fmt.Print("Ran away safely!")
+	drawBox([]string{
+		colorGreen + ansiBold + "  Safe escape!" + ansiReset,
+	}, 50, colorGreen)
+	pressEnterToContinue()
 	return false
 }
 
@@ -286,11 +480,21 @@ func inCombatInBush(character *Character, route int) bool {
 
 	inCombat := true
 
-	fmt.Printf("Wild %s level: %d appeared!\n\n", p.Name, p.Level)
+	cls()
+	fmt.Println()
+	drawTitledBox("WILD ENCOUNTER", []string{
+		"",
+		centerText(fmt.Sprintf("%sA wild %s%s%s appeared!%s",
+			colorWhite, ansiBold+colorYellow, strings.ToUpper(p.Name), ansiReset+colorWhite, ansiReset), 52),
+		centerText(fmt.Sprintf("%sLevel %s%d%s  %s",
+			colorGray, colorYellow, p.Level, ansiReset, typeBadge(p.Type)), 52),
+		"",
+	}, 60, colorRed, colorOrange)
+	pressEnterToContinue()
+
 	for inCombat {
+		renderBattleScreen(character.Pokemons[0], p, nil)
 		option = menuCombat(p)
-		fmt.Printf("%s HP: %d/%d\n", p.Name, p.ActualHP, p.HP)
-		fmt.Printf("%s HP: %d/%d", character.Pokemons[0].Name, character.Pokemons[0].ActualHP, character.Pokemons[0].HP)
 		switch option {
 		case 1:
 			inCombat = fight(&p, character)
